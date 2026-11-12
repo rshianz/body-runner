@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Body Runner — your body is the controller</title>
+    <meta
+      name="description"
+      content="A camera-controlled endless runner. Run in place, lean between lanes, jump and duck — all tracked locally in your browser."
+    />
+    <meta name="theme-color" content="#05060f" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23070a16'/%3E%3Ccircle cx='16' cy='9' r='4' fill='%235ff0d8'/%3E%3Cpath d='M16 13v8m0-6l-6 4m6-4l6 4m-6 2l-4 7m4-7l4 7' stroke='%235ff0d8' stroke-width='2.4' stroke-linecap='round'/%3E%3C/svg%3E"
+    />
+  </head>
+  <body>
+    <main id="app" data-mode="intro">
+      <canvas id="stage" aria-label="Game canvas"></canvas>
+      <video id="camera" playsinline muted autoplay aria-hidden="true"></video>
+      <div class="grain" aria-hidden="true"></div>
+
+      <!-- ============================== HUD ============================== -->
+      <section id="hud" class="hud" hidden>
+        <div class="hud__top">
+          <div class="score-panel">
+            <div class="score-panel__main">
+              <span class="label">SCORE</span>
+              <strong id="hudScore">0</strong>
+            </div>
+            <div class="score-panel__sub">
+              <span><i>BEST</i><b id="hudBest">0</b></span>
+              <span><i>DIST</i><b id="hudDist">0 m</b></span>
+            </div>
+          </div>
+          <div class="hud__right">
+            <div class="chip hearts" id="hudHearts" aria-label="Lives remaining"></div>
+            <div class="chip mult" id="hudMult">×1.0</div>
+          </div>
+        </div>
+
+        <div class="hud__bottom">
+          <div class="power">
+            <div class="power__head"><span>RUN POWER</span><b id="hudPowerLabel">0%</b></div>
+            <div class="power__track"><div id="hudPowerFill" class="power__fill"></div></div>
+          </div>
+          <div id="hudCombo" class="combo" aria-live="polite"></div>
+        </div>
+
+        <aside class="cam-panel" id="camPanel">
+          <canvas id="camPreview" width="320" height="240"></canvas>
+          <div class="cam-panel__meta">
+            <span class="dot" id="poseDot"></span>
+            <span id="poseLabel">POSE</span>
+            <span id="poseStats">—</span>
+          </div>
+        </aside>
+
+        <div class="hint-bar" id="hintBar">
+          Run in place · lean to switch lanes · jump to leap · crouch to slide
+        </div>
+      </section>
+
+      <!-- ============================= INTRO ============================= -->
+      <section id="screenIntro" class="screen screen--intro">
+        <div class="panel intro">
+          <header class="intro__head">
+            <div class="eyebrow"><span class="dot live"></span>WEBCAM ARCADE</div>
+            <h1>BODY<span>RUNNER</span></h1>
+            <p class="lede">
+              Your body is the controller. Run in place to build speed, shift side to side to
+              change lanes, leap over barriers and crouch to slide under gates.
+            </p>
+          </header>
+
+          <div class="intro__grid">
+            <div class="intro__preview">
+              <div class="preview-frame">
+                <canvas id="introPreview" width="480" height="360"></canvas>
+                <div class="preview-frame__empty" id="introPreviewEmpty">
+                  <div class="preview-frame__icon" aria-hidden="true">
+                    <svg viewBox="0 0 48 48" fill="none">
+                      <circle cx="24" cy="15" r="7" stroke="currentColor" stroke-width="2.2" />
+                      <path
+                        d="M24 22v9m0-7l-8 6m8-6l8 6m-8 1l-6 10m6-10l6 10"
+                        stroke="currentColor"
+                        stroke-width="2.2"
+                        stroke-linecap="round"
+                      />
+                    </svg>
+                  </div>
+                  <p>Camera preview appears here</p>
+                  <span>Nothing is recorded or uploaded</span>
+                </div>
+                <div class="preview-frame__badge" id="cameraBadge">STANDBY</div>
+                <div class="preview-frame__corners" aria-hidden="true"></div>
+              </div>
+              <p class="preview-hint" id="introStatus">
+                Stand two to three metres back so your whole body is in frame.
+              </p>
+              <div class="intro__actions">
+                <button class="btn btn--primary" id="btnCamera" type="button">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <rect x="3" y="6.5" width="12" height="11" rx="2.6" />
+                    <path d="M15 11l5.2-3v8L15 13" />
+                  </svg>
+                  <span>Start with camera</span>
+                </button>
+                <button class="btn btn--ghost" id="btnKeyboard" type="button">
+                  Play with keyboard
+                </button>
+              </div>
+            </div>
+
+            <div class="intro__side">
+              <div class="settings">
+                <div class="setting">
+                  <div class="setting__label">
+                    <span>Motion sensitivity</span><b id="sensValue">1.0×</b>
+                  </div>
+                  <input
+                    id="sensSlider"
+                    type="range"
+                    min="0.6"
+                    max="1.6"
+                    step="0.1"
+                    value="1"
+                    aria-label="Motion sensitivity"
+                  />
+                </div>
+                <div class="setting">
+                  <div class="setting__label"><span>Tracking quality</span></div>
+                  <div class="segmented" role="group" aria-label="Tracking quality">
+                    <button type="button" class="seg is-active" data-quality="accurate">
+                      Balanced
+                    </button>
+                    <button type="button" class="seg" data-quality="fast">Fast</button>
+                  </div>
+                </div>
+                <div class="setting setting--row">
+                  <span>Sound</span>
+                  <button id="btnMute" class="toggle" type="button" aria-pressed="false">
+                    <span class="toggle__knob"></span>
+                    <span id="muteLabel">On</span>
+                  </button>
+                </div>
+              </div>
+
+              <div class="how">
+                <h2>HOW TO PLAY</h2>
+                <ul>
+                  <li><span class="key">RUN</span>Pump your legs or arms in place</li>
+                  <li><span class="key">LEAN</span>Shift your body left or right</li>
+                  <li><span class="key">JUMP</span>Jump straight up</li>
+                  <li><span class="key">DUCK</span>Crouch down to slide</li>
+                </ul>
+                <p class="how__keys">
+                  No camera? <kbd>←</kbd><kbd>→</kbd> move · <kbd>↑</kbd> jump ·
+                  <kbd>↓</kbd> slide · <kbd>P</kbd> pause
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <footer class="intro__foot">
+            <span class="privacy">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <rect x="5" y="10" width="14" height="10" rx="2.5" />
+                <path d="M8.5 10V7.5a3.5 3.5 0 017 0V10" />
+              </svg>
+              Video never leaves this device — tracking runs locally.
+            </span>
+            <span class="credit">3 lives · endless track</span>
+          </footer>
+        </div>
+      </section>
+
+      <!-- =========================== CALIBRATION ========================= -->
+      <section id="screenCalibrate" class="screen screen--calibrate" hidden>
+        <div class="panel calibrate">
+          <div class="calibrate__head">
+            <div class="eyebrow">CALIBRATION</div>
+            <h2 id="calibTitle">Step into frame</h2>
+            <p id="calibStatus">Fit your head and both feet in the preview, then stand tall.</p>
+          </div>
+
+          <div class="calibrate__preview">
+            <canvas id="calibPreview" width="480" height="360"></canvas>
+            <div class="calibrate__count" id="calibCount">3</div>
+            <div class="calibrate__scan" id="calibScan"></div>
+            <div class="calibrate__hint" id="calibHint">Whole body in frame</div>
+          </div>
+
+          <div class="calibrate__bar"><div id="calibBarFill"></div></div>
+
+          <div class="calibrate__actions">
+            <button class="btn btn--ghost" id="btnCalibCancel" type="button">Cancel</button>
+            <button class="btn btn--primary" id="btnCalibReady" type="button">
+              Capture stance
+            </button>
+          </div>
+          <p class="calibrate__tip">Clear space around you and keep the camera still.</p>
+        </div>
+      </section>
+
+      <!-- ============================= PAUSE ============================= -->
+      <section id="screenPause" class="screen screen--modal" hidden>
+        <div class="panel modal-card">
+          <div class="eyebrow">PAUSED</div>
+          <h2>Catch your breath</h2>
+          <p>Your run is frozen. Step back in when you're ready.</p>
+          <div class="modal-card__actions">
+            <button class="btn btn--primary" id="btnResume" type="button">Resume</button>
+            <button class="btn btn--ghost" id="btnQuit" type="button">End run</button>
+          </div>
+          <p class="modal-card__tip"><kbd>P</kbd> or <kbd>Esc</kbd> to resume</p>
+        </div>
+      </section>
+
+      <!-- =========================== GAME OVER =========================== -->
+      <section id="screenGameover" class="screen screen--modal" hidden>
+        <div class="panel modal-card gameover">
+          <div class="eyebrow" id="goEyebrow">RUN COMPLETE</div>
+          <h2 id="goTitle">Out of lives</h2>
+          <div class="go-score">
+            <span>FINAL SCORE</span>
+            <strong id="goScore">0</strong>
+            <em id="goBestBadge" hidden>NEW PERSONAL BEST</em>
+          </div>
+          <div class="go-stats">
+            <div><span>DISTANCE</span><b id="goDist">0 m</b></div>
+            <div><span>ORBS</span><b id="goOrbs">0</b></div>
+            <div><span>BEST COMBO</span><b id="goCombo">0</b></div>
+            <div><span>TIME</span><b id="goTime">0:00</b></div>
+          </div>
+          <div class="modal-card__actions">
+            <button class="btn btn--primary" id="btnRestart" type="button">Run again</button>
+            <button class="btn btn--ghost" id="btnMenu" type="button">Main menu</button>
+          </div>
+          <p class="modal-card__tip" id="goTip">Press <kbd>R</kbd> to restart</p>
+        </div>
+      </section>
+
+      <!-- ============================= LOADING =========================== -->
+      <div id="loading" class="loading" hidden>
+        <div class="loading__ring" aria-hidden="true"></div>
+        <div class="loading__text">
+          <strong id="loadingTitle">Warming up</strong>
+          <span id="loadingDetail">Getting the camera ready…</span>
+        </div>
+        <button class="btn btn--ghost loading__cancel" id="btnLoadingCancel" type="button">
+          Cancel
+        </button>
+      </div>
+
+      <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    </main>
+
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>

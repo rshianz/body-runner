@@ -2,7 +2,7 @@
 __pycache__/
 *.py[codz]
 *$py.class
-
+.DS_Store
 # C extensions
 *.so
 
@@ -143,7 +143,7 @@ rabbitmq-data/
 
 # ActiveMQ
 activemq-data/
-
+.freebuff
 # SageMath parsed files
 *.sage.py
 
